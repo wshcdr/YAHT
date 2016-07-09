@@ -1,0 +1,63 @@
+import Control.Monad.State   
+data Tree a = Leaf a | Branch (Tree a) (Tree a) deriving (Show)
+
+mapTreeM :: (a -> State state b) -> Tree a ->
+            State state (Tree b)
+mapTreeM f (Leaf a) = do
+  b <- f a
+  return (Leaf b)
+mapTreeM f (Branch lhs rhs) = do
+  lhs' <- mapTreeM f lhs
+  rhs' <- mapTreeM f rhs
+  return (Branch lhs' rhs')
+
+
+mapTreeM_1 :: Monad m=> (a -> m  b) -> Tree a -> m (Tree b) 
+mapTreeM_1 f (Leaf a) = do
+  b <- f a
+  return (Leaf b)
+mapTreeM_1 f (Branch lhs rhs) = do
+  lhs' <- mapTreeM_1 f lhs
+  rhs' <- mapTreeM_1 f rhs
+  return (Branch lhs' rhs')
+
+getState :: State state state
+getState = State (\state -> (state, state))
+
+putState :: state -> State state ()
+putState new = State (\_ -> ( (),new ))
+
+numberTree :: Tree a -> State Int (Tree (a, Int))
+numberTree tree = mapTreeM_1 number tree
+    where number v = do
+            cur <- getState
+            putState (cur+1)
+            return (v,cur)
+
+
+runStateM (State f) st = fst (f st)
+
+fluffLeaves tree = mapTreeM fluff tree
+    where fluff v = do
+            cur <- getState
+            putState (v:cur)
+            return (v:cur)
+
+
+testTree =
+  Branch
+    (Branch
+      (Leaf 'a')
+      (Branch
+        (Leaf 'b')
+        (Leaf 'c')))
+    (Branch
+      (Leaf 'd')
+      (Leaf 'e'))
+      
+---usage
+---mapTreeM (numberTree testTree) 1
+
+---mapTreeM (fluffLeaves  testTree) []
+
+---mapTreeM_1 print testTree
